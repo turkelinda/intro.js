@@ -79,6 +79,8 @@
         var currentItem = _cloneObject(this._options.steps[i]);
         //set the step
         currentItem.step = introItems.length + 1;
+        currentItem.originElement = currentItem.element;
+        currentItem.originPosition= currentItem.position;
         //use querySelector function only when developer used CSS selector
         if (typeof(currentItem.element) === 'string') {
           //grab the element with given selector from the page
@@ -106,7 +108,7 @@
       }
 
     } else {
-       //use steps from data-* annotations
+      //use steps from data-* annotations
       var allIntroSteps = targetElm.querySelectorAll('*[data-intro]');
       //if there's no element to intro
       if (allIntroSteps.length < 1) {
@@ -225,20 +227,20 @@
     return false;
   }
 
- /*
+  /*
    * makes a copy of the object
    * @api private
    * @method _cloneObject
-  */
+   */
   function _cloneObject(object) {
-      if (object == null || typeof (object) != 'object' || typeof (object.nodeType) != 'undefined') {
-          return object;
-      }
-      var temp = {};
-      for (var key in object) {
-          temp[key] = _cloneObject(object[key]);
-      }
-      return temp;
+    if (object == null || typeof (object) != 'object' || typeof (object.nodeType) != 'undefined') {
+      return object;
+    }
+    var temp = {};
+    for (var key in object) {
+      temp[key] = _cloneObject(object[key]);
+    }
+    return temp;
   }
   /**
    * Go to specific step of introduction
@@ -252,6 +254,22 @@
     if (typeof (this._introItems) !== 'undefined') {
       _nextStep.call(this);
     }
+  }
+
+  function _resolveFloating(step){
+    if (step.position === 'floating'){
+      //grab the element with given selector from the page
+      var element = document.querySelector(step.originElement);
+      if (typeof(element) !== 'undefined' && element !== null) {
+        step.element = element
+        step.position =  step.originPosition
+        var floatingElement = document.querySelector('.introjsFloatingElement');
+        if (floatingElement) {
+          floatingElement.parentNode.removeChild(floatingElement);
+        }
+      }
+    }
+    return step;
   }
 
   /**
@@ -280,6 +298,7 @@
     }
 
     var nextStep = this._introItems[this._currentStep];
+    nextStep = _resolveFloating(nextStep)
     if (typeof (this._introBeforeChangeCallback) !== 'undefined') {
       this._introBeforeChangeCallback.call(this, nextStep.element, this._currentStep);
     }
@@ -295,12 +314,13 @@
    */
   function _previousStep() {
     this._direction = 'backward';
-    
+
     if (this._currentStep === 0) {
       return false;
     }
 
     var nextStep = this._introItems[--this._currentStep];
+    nextStep = _resolveFloating(nextStep)
     if (typeof (this._introBeforeChangeCallback) !== 'undefined') {
       this._introBeforeChangeCallback.call(this, nextStep.element, this._currentStep);
     }
@@ -318,7 +338,7 @@
   function _exitIntro(targetElement) {
     //remove overlay layer from the page
     var overlayLayer = targetElement.querySelector('.introjs-overlay');
-    
+
     //return if intro already completed or skipped
     if (overlayLayer == null) {
       return;
@@ -364,7 +384,7 @@
     } else if (document.detachEvent) { //IE
       document.detachEvent('onkeydown', this._onKeyDown);
     }
-    
+
     //set the step to zero
     this._currentStep = undefined;
   }
@@ -424,7 +444,7 @@
         arrowLayer.className = 'introjs-arrow left';
         break;
       case 'left':
-        if (this._options.showStepNumbers == true) {  
+        if (this._options.showStepNumbers == true) {
           tooltipLayer.style.top = '15px';
         }
         tooltipLayer.style.right = (_getOffset(targetElement).width + 20) + 'px';
@@ -478,9 +498,9 @@
 
       //set new position to helper layer
       helperLayer.setAttribute('style', 'width: ' + (elementPosition.width  + widthHeightPadding)  + 'px; ' +
-                                        'height:' + (elementPosition.height + widthHeightPadding)  + 'px; ' +
-                                        'top:'    + (elementPosition.top    - 5)   + 'px;' +
-                                        'left: '  + (elementPosition.left   - 5)   + 'px;');
+          'height:' + (elementPosition.height + widthHeightPadding)  + 'px; ' +
+          'top:'    + (elementPosition.top    - 5)   + 'px;' +
+          'left: '  + (elementPosition.left   - 5)   + 'px;');
     }
   }
 
@@ -494,7 +514,7 @@
   function _showElement(targetElement) {
 
     if (typeof (this._introChangeCallback) !== 'undefined') {
-        this._introChangeCallback.call(this, targetElement.element, this._currentStep);
+      this._introChangeCallback.call(this, targetElement.element, this._currentStep);
     }
 
     var self = this,
@@ -717,35 +737,35 @@
     while (parentElm != null) {
       if (parentElm.tagName.toLowerCase() === 'body') break;
 
-      //fix The Stacking Contenxt problem. 
+      //fix The Stacking Contenxt problem.
       //More detail: https://developer.mozilla.org/en-US/docs/Web/Guide/CSS/Understanding_z_index/The_stacking_context
       var zIndex = _getPropValue(parentElm, 'z-index');
       var opacity = parseFloat(_getPropValue(parentElm, 'opacity'));
       if (/[0-9]+/.test(zIndex) || opacity < 1) {
         parentElm.className += ' introjs-fixParent';
       }
-    
+
       parentElm = parentElm.parentNode;
     }
 
     if (!_elementInViewport(targetElement.element) && this._options.scrollToElement === true) {
       var rect = targetElement.element.getBoundingClientRect(),
-        winHeight=_getWinSize().height,
-        top = rect.bottom - (rect.bottom - rect.top),
-        bottom = rect.bottom - winHeight;
+          winHeight=_getWinSize().height,
+          top = rect.bottom - (rect.bottom - rect.top),
+          bottom = rect.bottom - winHeight;
 
       //Scroll up
       if (top < 0 || targetElement.element.clientHeight > winHeight) {
         window.scrollBy(0, top - 30); // 30px padding from edge to look nice
 
-      //Scroll down
+        //Scroll down
       } else {
         window.scrollBy(0, bottom + 100); // 70px + 30px padding from edge to look nice
       }
     }
-    
+
     if (typeof (this._introAfterChangeCallback) !== 'undefined') {
-        this._introAfterChangeCallback.call(this, targetElement.element, this._currentStep);
+      this._introAfterChangeCallback.call(this, targetElement.element, this._currentStep);
     }
   }
 
@@ -804,10 +824,10 @@
     var rect = el.getBoundingClientRect();
 
     return (
-      rect.top >= 0 &&
-      rect.left >= 0 &&
-      (rect.bottom+80) <= window.innerHeight && // add 80 to get the text right
-      rect.right <= window.innerWidth
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        (rect.bottom+80) <= window.innerHeight && // add 80 to get the text right
+        rect.right <= window.innerWidth
     );
   }
 
@@ -869,28 +889,7 @@
    * @returns Element's position info
    */
   function _getOffset(element) {
-    var elementPosition = {};
-
-    //set width
-    elementPosition.width = element.offsetWidth;
-
-    //set height
-    elementPosition.height = element.offsetHeight;
-
-    //calculate element top and left
-    var _x = 0;
-    var _y = 0;
-    while (element && !isNaN(element.offsetLeft) && !isNaN(element.offsetTop)) {
-      _x += element.offsetLeft;
-      _y += element.offsetTop;
-      element = element.offsetParent;
-    }
-    //set top
-    elementPosition.top = _y;
-    //set left
-    elementPosition.left = _x;
-
-    return elementPosition;
+    return element.getBoundingClientRect();
   }
 
   /**
